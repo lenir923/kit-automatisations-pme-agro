@@ -1,0 +1,833 @@
+{
+  "name": "2 - Relance des impayés",
+  "nodes": [
+    {
+      "id": "7ee152f0-b9c4-4bfd-828e-9d7e77eb3679",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -300
+      ],
+      "parameters": {
+        "width": 720,
+        "height": 300,
+        "color": 4,
+        "content": "## 2. La relance des impayés\nChaque matin à 8 h, elle lit vos factures, garde celles qui sont en retard et envoie la bonne relance selon le retard : polie à J+1, plus directe avec la facture à J+8, ferme à J+15. À J+30, elle n'écrit plus au client : elle vous demande de l'appeler. Une facture marquée payée n'est plus jamais relancée.\n\n**Pour l'adapter** : tout est dans **Réglages**, puis le texte des 4 mails."
+      }
+    },
+    {
+      "id": "ca507fa7-f82a-4f35-98c0-a8f8651454a2",
+      "name": "Chaque matin à 8 h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        20
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b2e16597-d585-419c-8314-1f0ab353925f",
+      "name": "Lancer à la main (démo)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "66deb912-487c-43fb-84a2-cad2835e4063",
+      "name": "Réglages",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        120
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0734a571-698d-4521-8503-36a082062e48",
+              "name": "feuille_erp_id",
+              "type": "string",
+              "value": "COLLEZ_ICI_L_ID_DE_VOTRE_GOOGLE_SHEET"
+            },
+            {
+              "id": "2186cd1c-710a-4ba6-8eee-07ac86b26d23",
+              "name": "nom_entreprise",
+              "type": "string",
+              "value": "Votre entreprise"
+            },
+            {
+              "id": "c5413fd2-c283-4a08-9920-d4b67cb46773",
+              "name": "adresse_entreprise",
+              "type": "string",
+              "value": "Votre adresse, code postal, ville"
+            },
+            {
+              "id": "8503c387-7466-424f-ba90-6e3b271f1e05",
+              "name": "signature",
+              "type": "string",
+              "value": "Votre entreprise, service comptabilité"
+            },
+            {
+              "id": "b126e81c-1231-4a47-a426-fec2f1726f9f",
+              "name": "adresse_dirigeant",
+              "type": "string",
+              "value": "dirigeant@votre-entreprise.fr"
+            },
+            {
+              "id": "28d628b3-5d31-4638-80e3-7e0628428e07",
+              "name": "jours_rappel_direct",
+              "type": "number",
+              "value": 8
+            },
+            {
+              "id": "8dbc308b-624b-4c35-9ecc-7576d8988bc3",
+              "name": "jours_mail_ferme",
+              "type": "number",
+              "value": 15
+            },
+            {
+              "id": "ec1883d6-986a-4afe-92a1-3f79403dc885",
+              "name": "jours_appel",
+              "type": "number",
+              "value": 30
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "08d8d81f-eb27-4229-a689-e8b38a811cb8",
+      "name": "Lire les factures",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        400,
+        120
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Réglages').first().json.feuille_erp_id }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Factures",
+          "mode": "name"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "5920ef4b-9d52-4e7e-bb73-ce2b747b3146",
+      "name": "Garder les factures en retard",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        600,
+        120
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ada6901b-5084-462c-a817-8fd60fdc4df7",
+              "leftValue": "={{ $json.payee }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "NON"
+            },
+            {
+              "id": "e11b8157-83cf-433d-a465-615b3e525cf7",
+              "leftValue": "={{ $json.date_echeance }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "before"
+              },
+              "rightValue": "={{ $today }}"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ea01d927-894d-4aeb-8c50-6aaa67fd1a22",
+      "name": "Calculer les jours de retard",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        800,
+        120
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5dada542-dab9-4ab5-b25b-b5ce49561be8",
+              "name": "jours_retard",
+              "type": "number",
+              "value": "={{ Math.round($today.diff(DateTime.fromISO($json.date_echeance), 'days').days) }}"
+            },
+            {
+              "id": "4d8d87df-42b4-463e-9046-3c474997fa13",
+              "name": "niveau_a_envoyer",
+              "type": "number",
+              "value": "={{ (j => j >= $('Réglages').first().json.jours_appel ? 4 : j >= $('Réglages').first().json.jours_mail_ferme ? 3 : j >= $('Réglages').first().json.jours_rappel_direct ? 2 : 1)(Math.round($today.diff(DateTime.fromISO($json.date_echeance), 'days').days)) }}"
+            },
+            {
+              "id": "a59abcfa-e750-4026-8000-d7eb25b7dd2e",
+              "name": "montant_texte",
+              "type": "string",
+              "value": "={{ Number($json.montant_ttc).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) }}"
+            },
+            {
+              "id": "9ad047ca-63cf-435a-a1d9-bf24566335fe",
+              "name": "date_facture_texte",
+              "type": "string",
+              "value": "={{ DateTime.fromISO($json.date_facture).setLocale('fr').toFormat('d MMMM') }}"
+            },
+            {
+              "id": "ae26da3f-bc36-4600-b918-29c52fc4e4c7",
+              "name": "date_echeance_texte",
+              "type": "string",
+              "value": "={{ DateTime.fromISO($json.date_echeance).setLocale('fr').toFormat('d MMMM') }}"
+            },
+            {
+              "id": "86d66615-a66a-478e-b810-562e3a01dc25",
+              "name": "echeance_texte",
+              "type": "string",
+              "value": "={{ Math.round($today.diff(DateTime.fromISO($json.date_echeance), 'days').days) === 1 ? 'hier' : 'le ' + DateTime.fromISO($json.date_echeance).setLocale('fr').toFormat('d MMMM') }}"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "0262814f-ead5-4eab-b419-ffaef38b4fc3",
+      "name": "Pas encore relancée à ce niveau ?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1000,
+        120
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dc17230f-130d-4eef-83a2-4a60807ccbf2",
+              "leftValue": "={{ $json.niveau_a_envoyer }}",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
+              "rightValue": "={{ Number($json.niveau_relance) || 0 }}"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "81a27fda-7cdf-412f-a4ba-6bb284681ebd",
+      "name": "Quel niveau de relance ?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1180,
+        120
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "afbd50ea-aec2-4a3a-bca1-b61b78d51b0b",
+                    "leftValue": "={{ $json.niveau_a_envoyer }}",
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    },
+                    "rightValue": 1
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "J+1 : mail poli"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "10648b5f-6d8e-4bf2-911f-ebdb84b8ae60",
+                    "leftValue": "={{ $json.niveau_a_envoyer }}",
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    },
+                    "rightValue": 2
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "J+8 : rappel direct"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "33172707-0a29-47e0-bc9e-d18c6f2115e3",
+                    "leftValue": "={{ $json.niveau_a_envoyer }}",
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    },
+                    "rightValue": 3
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "J+15 : mail ferme"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "983fd5af-f5d9-4d47-9c69-26e203e003fc",
+                    "leftValue": "={{ $json.niveau_a_envoyer }}",
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    },
+                    "rightValue": 4
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "J+30 : appeler le client"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "af02aa22-0198-4c7e-b54b-9ed373f3d92a",
+      "name": "Mail poli",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1580,
+        -140
+      ],
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Facture {{ $json.n_facture }} : petit rappel",
+        "emailType": "text",
+        "message": "=Bonjour,\n\nSauf erreur de notre part, la facture du {{ $json.date_facture_texte }} ({{ $json.n_facture }}, {{ $json.montant_texte }} TTC) est arrivée à échéance {{ $json.echeance_texte }}.\n\nSi le règlement est déjà parti, merci d'ignorer ce message.\n\nBonne journée,\n\n{{ $('Réglages').first().json.signature }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "={{ $('Réglages').first().json.nom_entreprise }}"
+        }
+      }
+    },
+    {
+      "id": "c2a8f234-4c0b-4fda-a399-da2e1b77e838",
+      "name": "Joindre la facture PDF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1380,
+        20
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Joint la facture en PDF.\n// Ici on la fabrique à partir du tableau. Chez vous : le PDF de votre logiciel de facturation.\nconst R = $('Réglages').first().json;\nconst f = $json;\nconst fr = d => d ? DateTime.fromISO(d).setLocale('fr').toFormat('dd/MM/yyyy') : '';\n\n// Texte compatible PDF (accents en WinAnsi)\nconst pdfTexte = s => String(s)\n  .replace(/[  ]/g, ' ')\n  .replace(/[\\\\()]/g, c => '\\\\' + c)\n  .replace(/[^\\x20-\\x7e]/g, c => {\n    const code = c === '€' ? 0x80 : c === '’' ? 0x92 : c.charCodeAt(0);\n    return code < 256 ? '\\\\' + code.toString(8).padStart(3, '0') : '?';\n  });\n\nconst lignes = [\n  [50, 780, 20, 'F2', R.nom_entreprise],\n  [50, 762, 10, 'F1', R.adresse_entreprise],\n  [50, 690, 18, 'F2', `FACTURE ${f.n_facture}`],\n  [50, 655, 11, 'F1', `Client : ${f.client} (${f.id_client})`],\n  [50, 637, 11, 'F1', `Date de facture : ${fr(f.date_facture)}`],\n  [50, 619, 11, 'F1', `Date d'échéance : ${fr(f.date_echeance)}`],\n  [50, 570, 14, 'F2', `Montant TTC : ${f.montant_texte}`],\n  [50, 548, 11, 'F1', `Reste à payer : ${f.montant_texte}`],\n  [50, 500, 10, 'F1', `Règlement par virement, en indiquant le numéro de facture ${f.n_facture}.`],\n  [50, 60, 8, 'F1', 'Facture de démonstration.'],\n];\nconst contenu = lignes.map(([x, y, t, police, s]) => `BT /${police} ${t} Tf ${x} ${y} Td (${pdfTexte(s)}) Tj ET`).join('\\n');\n\nconst objets = [\n  '<< /Type /Catalog /Pages 2 0 R >>',\n  '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',\n  '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>',\n  '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',\n  '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',\n  `<< /Length ${contenu.length} >>\\nstream\\n${contenu}\\nendstream`,\n];\nlet pdf = '%PDF-1.4\\n';\nconst positions = [];\nobjets.forEach((o, i) => { positions.push(pdf.length); pdf += `${i + 1} 0 obj\\n${o}\\nendobj\\n`; });\nconst xref = pdf.length;\npdf += `xref\\n0 ${objets.length + 1}\\n0000000000 65535 f \\n`;\npositions.forEach(p => { pdf += `${String(p).padStart(10, '0')} 00000 n \\n`; });\npdf += `trailer\\n<< /Size ${objets.length + 1} /Root 1 0 R >>\\nstartxref\\n${xref}\\n%%EOF`;\n\nreturn {\n  json: f,\n  binary: {\n    facture: {\n      data: Buffer.from(pdf, 'latin1').toString('base64'),\n      mimeType: 'application/pdf',\n      fileName: `Facture-${f.n_facture}.pdf`,\n      fileExtension: 'pdf',\n    },\n  },\n};\n"
+      }
+    },
+    {
+      "id": "b2893917-074a-416c-a703-f949d61b121b",
+      "name": "Rappel direct + facture",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1580,
+        20
+      ],
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Rappel : facture {{ $json.n_facture }} en attente de règlement",
+        "emailType": "text",
+        "message": "=Bonjour,\n\nNous n'avons pas encore reçu le règlement de la facture {{ $json.n_facture }} du {{ $json.date_facture_texte }}, d'un montant de {{ $json.montant_texte }} TTC. Elle est échue depuis le {{ $json.date_echeance_texte }}, soit {{ $json.jours_retard }} jours de retard.\n\nVous la trouverez en pièce jointe. Merci de procéder au règlement dans les prochains jours.\n\nSi le paiement est en cours, un simple retour à ce mail nous suffit.\n\nCordialement,\n\n{{ $('Réglages').first().json.signature }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "={{ $('Réglages').first().json.nom_entreprise }}",
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "facture"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "08d98b8f-f6a5-4ed4-8252-b6eaf322a268",
+      "name": "Mail ferme",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1580,
+        200
+      ],
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Facture {{ $json.n_facture }} impayée : merci de nous donner une date de paiement",
+        "emailType": "text",
+        "message": "=Bonjour,\n\nMalgré nos rappels, la facture {{ $json.n_facture }} du {{ $json.date_facture_texte }} ({{ $json.montant_texte }} TTC) reste impayée. Elle a maintenant {{ $json.jours_retard }} jours de retard.\n\nMerci de nous indiquer, en réponse à ce mail, la date à laquelle le règlement sera effectué.\n\nSans réponse de votre part, nous serons obligés de suspendre les prochaines livraisons.\n\nCordialement,\n\n{{ $('Réglages').first().json.signature }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "={{ $('Réglages').first().json.nom_entreprise }}"
+        }
+      }
+    },
+    {
+      "id": "f6638c1a-73bc-4026-b171-3da4c535e8a8",
+      "name": "Regrouper les clients à appeler",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1380,
+        600
+      ],
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "factures",
+        "options": {}
+      }
+    },
+    {
+      "id": "44c71b90-4520-468e-824e-384df395f308",
+      "name": "Alerte au dirigeant : à appeler",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1580,
+        600
+      ],
+      "parameters": {
+        "sendTo": "={{ $('Réglages').first().json.adresse_dirigeant }}",
+        "subject": "=À appeler aujourd'hui : {{ $json.factures.length }} client{{ $json.factures.length > 1 ? 's' : '' }} en retard de paiement",
+        "emailType": "text",
+        "message": "=Bonjour,\n\n{{ $json.factures.length > 1 ? 'Ces ' + $json.factures.length + ' clients ne répondent pas' : 'Ce client ne répond pas' }} aux relances. Il faut {{ $json.factures.length > 1 ? 'les ' : \"l'\" }}appeler :\n\n{{ $json.factures.map(f => '- ' + f.client + ' : ' + f.montant_texte + ' TTC, facture ' + f.n_facture + ' échue le ' + f.date_echeance_texte + ' (' + f.jours_retard + ' jours de retard). Téléphone : ' + f.telephone).join('\\n') }}\n\nTotal à récupérer : {{ $json.factures.reduce((s, f) => s + Number(f.montant_ttc), 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) }} TTC.\n\nPlus aucun mail automatique ne partira vers {{ $json.factures.length > 1 ? 'ces clients' : 'ce client' }} pour {{ $json.factures.length > 1 ? 'ces factures' : 'cette facture' }}.",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Relance des impayés"
+        }
+      }
+    },
+    {
+      "id": "a75e2016-dcaa-474c-8b65-08b66e3da647",
+      "name": "Noter la relance dans le tableau",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1840,
+        440
+      ],
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Réglages').first().json.feuille_erp_id }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Factures",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "n_facture": "={{ $('Calculer les jours de retard').item.json.n_facture }}",
+            "niveau_relance": "={{ $('Calculer les jours de retard').item.json.niveau_a_envoyer }}",
+            "date_derniere_relance": "={{ $today.toFormat('yyyy-MM-dd') }}"
+          },
+          "matchingColumns": [
+            "n_facture"
+          ],
+          "schema": [
+            {
+              "id": "n_facture",
+              "displayName": "n_facture",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "id_client",
+              "displayName": "id_client",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "client",
+              "displayName": "client",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "telephone",
+              "displayName": "telephone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "date_facture",
+              "displayName": "date_facture",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "date_echeance",
+              "displayName": "date_echeance",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "montant_ttc",
+              "displayName": "montant_ttc",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "payee",
+              "displayName": "payee",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "date_paiement",
+              "displayName": "date_paiement",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "niveau_relance",
+              "displayName": "niveau_relance",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "date_derniere_relance",
+              "displayName": "date_derniere_relance",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Chaque matin à 8 h": {
+      "main": [
+        [
+          {
+            "node": "Réglages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lancer à la main (démo)": {
+      "main": [
+        [
+          {
+            "node": "Réglages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Réglages": {
+      "main": [
+        [
+          {
+            "node": "Lire les factures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire les factures": {
+      "main": [
+        [
+          {
+            "node": "Garder les factures en retard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Garder les factures en retard": {
+      "main": [
+        [
+          {
+            "node": "Calculer les jours de retard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculer les jours de retard": {
+      "main": [
+        [
+          {
+            "node": "Pas encore relancée à ce niveau ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pas encore relancée à ce niveau ?": {
+      "main": [
+        [
+          {
+            "node": "Quel niveau de relance ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quel niveau de relance ?": {
+      "main": [
+        [
+          {
+            "node": "Mail poli",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Joindre la facture PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mail ferme",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Noter la relance dans le tableau",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Regrouper les clients à appeler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Joindre la facture PDF": {
+      "main": [
+        [
+          {
+            "node": "Rappel direct + facture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Regrouper les clients à appeler": {
+      "main": [
+        [
+          {
+            "node": "Alerte au dirigeant : à appeler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mail poli": {
+      "main": [
+        [
+          {
+            "node": "Noter la relance dans le tableau",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rappel direct + facture": {
+      "main": [
+        [
+          {
+            "node": "Noter la relance dans le tableau",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mail ferme": {
+      "main": [
+        [
+          {
+            "node": "Noter la relance dans le tableau",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Paris"
+  }
+}

@@ -1,0 +1,769 @@
+{
+  "name": "1 - Commandes reçues par mail",
+  "nodes": [
+    {
+      "id": "c4688555-b68b-4bb4-bfd9-0e22dfb1a0b5",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -540
+      ],
+      "parameters": {
+        "width": 720,
+        "height": 300,
+        "color": 4,
+        "content": "## 1. Les commandes reçues par mail\nDès qu'un mail arrive dans la boîte des commandes, l'IA vérifie que c'est une commande, lit le PDF, l'Excel ou le texte du mail, ajoute une ligne par produit dans le tableau des commandes et envoie l'accusé de réception au client. Si quelque chose cloche, elle ne devine pas : elle vous alerte.\n\n**Pour l'adapter** : l'adresse surveillée (1er nœud), puis tout le reste dans **Réglages**."
+      }
+    },
+    {
+      "id": "e0ae387d-9b5a-4eeb-a162-31e23e2e8e12",
+      "name": "Surveiller la boîte des commandes",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        120
+      ],
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "to:commandes@votre-entreprise.fr",
+          "readStatus": "both"
+        },
+        "options": {
+          "downloadAttachments": true
+        }
+      }
+    },
+    {
+      "id": "4e2537b4-65dc-432d-97a0-cb2c3a23f5a7",
+      "name": "Réglages",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        120
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bd71f54e-196f-48f0-85fa-27a4c45a3818",
+              "name": "feuille_erp_id",
+              "type": "string",
+              "value": "COLLEZ_ICI_L_ID_DE_VOTRE_GOOGLE_SHEET"
+            },
+            {
+              "id": "98bf6e25-19ce-4464-9881-abb7605e3eca",
+              "name": "nom_entreprise",
+              "type": "string",
+              "value": "Votre entreprise"
+            },
+            {
+              "id": "cba508fa-041d-4bec-b6c8-c3382d7e394c",
+              "name": "signature",
+              "type": "string",
+              "value": "Votre entreprise, service commandes"
+            },
+            {
+              "id": "1d6913bc-836e-45c2-94fe-d29348e34ced",
+              "name": "adresse_alerte",
+              "type": "string",
+              "value": "vous@votre-entreprise.fr"
+            },
+            {
+              "id": "fd9ecbf1-cfb3-49c3-b233-88ffc341c83f",
+              "name": "quantite_max_par_produit",
+              "type": "number",
+              "value": 200
+            },
+            {
+              "id": "475a8dff-b180-4bf3-88c5-b9e2a4963aca",
+              "name": "premier_numero_commande",
+              "type": "number",
+              "value": 1
+            },
+            {
+              "id": "b40600ec-276d-4066-b50f-d0c7d18c822f",
+              "name": "modele_ia",
+              "type": "string",
+              "value": "anthropic/claude-haiku-5.5"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "0729f743-bb1f-467f-93b5-73b36212beda",
+      "name": "Est-ce une commande ?",
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1.1,
+      "position": [
+        400,
+        120
+      ],
+      "parameters": {
+        "inputText": "=Objet : {{ $json.subject }}\nDe : {{ $json.from?.text }}\nPièces jointes : {{ Object.values($binary || {}).map(f => f.fileName).join(', ') || 'aucune' }}\n\n{{ ($json.text || '').slice(0, 3000) }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "Commande",
+              "description": "Un client passe commande de produits : bon de commande en pièce jointe (PDF, Excel, scan), ou liste de produits et de quantités dans le mail. Une commande de réassort compte aussi."
+            },
+            {
+              "category": "Autre",
+              "description": "Tout le reste : question, réclamation, facture, relance, devis, publicité, prospection, newsletter, message personnel."
+            }
+          ]
+        },
+        "options": {
+          "fallback": "discard"
+        }
+      }
+    },
+    {
+      "id": "994f32e7-91f7-4824-94f8-6dddb4cb56ad",
+      "name": "IA rapide pour le tri",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        360,
+        280
+      ],
+      "parameters": {
+        "model": "anthropic/claude-haiku-5.5",
+        "options": {
+          "temperature": 0
+        }
+      }
+    },
+    {
+      "id": "0ca2d3e6-75db-4d46-b8d0-cf4e40818141",
+      "name": "Pas une commande : on ne fait rien",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        600,
+        500
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "f756aeee-2a8d-45a5-a73d-54155f9e2732",
+      "name": "Charger le catalogue",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        600,
+        -220
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Réglages').first().json.feuille_erp_id }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Produits",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "cf41202c-42fa-4a39-80dd-a6beb9bf68ce",
+      "name": "Charger les clients",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        800,
+        -220
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Réglages').first().json.feuille_erp_id }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Clients",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "467142da-5f07-452e-b6b0-8e87a327ddec",
+      "name": "Charger les commandes déjà saisies",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1000,
+        -220
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Réglages').first().json.feuille_erp_id }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Commandes",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "f26c4b08-2adf-412d-8a0f-e15fa864d644",
+      "name": "Ouvrir la pièce jointe",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        600,
+        120
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "31783575-a1be-413b-a0e6-c799080ac3d5",
+                    "leftValue": "={{ Object.values($binary || {}).some(f => (f.fileExtension || '').toLowerCase() === 'pdf' || (f.mimeType || '').includes('pdf')) }}",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "rightValue": ""
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "PDF"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "9945a394-8f9c-493b-b8f1-35595e990a3a",
+                    "leftValue": "={{ !(Object.values($binary || {}).some(f => (f.fileExtension || '').toLowerCase() === 'pdf' || (f.mimeType || '').includes('pdf'))) && !(Object.values($binary || {}).some(f => ['xlsx', 'xls'].includes((f.fileExtension || '').toLowerCase()) || (f.mimeType || '').includes('spreadsheet') || (f.mimeType || '').includes('excel'))) }}",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "rightValue": ""
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Pas de PDF ni d'Excel : le texte du mail"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "67eae56c-2f42-4a7f-9b9f-e8c54d96d6ba",
+                    "leftValue": "={{ Object.values($binary || {}).some(f => ['xlsx', 'xls'].includes((f.fileExtension || '').toLowerCase()) || (f.mimeType || '').includes('spreadsheet') || (f.mimeType || '').includes('excel')) }}",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "rightValue": ""
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Excel"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "08595185-963d-4a74-ae39-38a05826d0c3",
+      "name": "Lire le PDF",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        800,
+        -40
+      ],
+      "parameters": {
+        "operation": "binaryToPropery",
+        "binaryPropertyName": "={{ Object.keys($binary).find(k => ($binary[k].fileExtension || '').toLowerCase() === 'pdf' || ($binary[k].mimeType || '').includes('pdf')) }}",
+        "destinationKey": "pdf_base64",
+        "options": {}
+      }
+    },
+    {
+      "id": "c04ca238-77f9-46ca-8393-2648f018f5f2",
+      "name": "Lire l'Excel",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        800,
+        280
+      ],
+      "parameters": {
+        "operation": "xlsx",
+        "binaryPropertyName": "={{ Object.keys($binary).find(k => ['xlsx', 'xls'].includes(($binary[k].fileExtension || '').toLowerCase()) || ($binary[k].mimeType || '').includes('spreadsheet') || ($binary[k].mimeType || '').includes('excel')) }}",
+        "options": {
+          "headerRow": false
+        }
+      }
+    },
+    {
+      "id": "75af2d9e-3e53-48df-ba35-37026c926cfa",
+      "name": "Regrouper les lignes de l'Excel",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        280
+      ],
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "lignes_excel",
+        "options": {}
+      }
+    },
+    {
+      "id": "7514590c-a45d-451d-b390-cd712f1d7e3b",
+      "name": "Lire la commande (IA)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1180,
+        120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const R = $('Réglages').item.json;\n  const catalogue = $('Charger le catalogue').all().map(p => `${p.json.ref} | ${p.json.produit} | ${p.json.format} | ${p.json.unites_par_carton} unités par carton`).join('\\n');\n  const clients = $('Charger les clients').all().map(c => `${c.json.id_client} | ${c.json.client} | ${c.json.ville} | ${c.json.email} | ${c.json.contact}`).join('\\n');\n  const aujourdhui = $now.setLocale('fr').toFormat('cccc yyyy-MM-dd');\n  const de = (R.from || {}).text;\n  const corpsMail = (R.text || '').slice(0, 6000);\n  let texte = 'Date du jour : ' + aujourdhui + '\\n\\nCATALOGUE (ref | produit | format | unités par carton) :\\n' + catalogue + '\\n\\nCLIENTS (id | nom | ville | email | contact) :\\n' + clients + '\\n\\nLE MAIL REÇU\\nDe : ' + de + '\\nObjet : ' + R.subject + '\\n\\n' + corpsMail;\n  if ($json.lignes_excel) texte += `\\n\\nCONTENU DU FICHIER EXCEL JOINT (une ligne par rangée) :\\n${$json.lignes_excel.map(l => JSON.stringify(l)).join('\\n')}`;\n  const contenu = [{ type: 'text', text: texte }];\n  if ($json.pdf_base64) contenu.push({ type: 'file', file: { filename: 'commande.pdf', file_data: 'data:application/pdf;base64,' + $json.pdf_base64 } });\n  return JSON.stringify({\n    model: R.modele_ia,\n    temperature: 0,\n    max_tokens: 3000,\n    messages: [\n      { role: 'system', content: `Tu travailles à l'administration des ventes de ${R.nom_entreprise}. Tu lis les commandes reçues par mail (bon de commande PDF, scan, fichier Excel ou simple texte) et tu les recopies sans rien inventer.\nRègles :\n- Rapproche chaque produit commandé d'une référence du CATALOGUE. Si un produit n'y est pas, ref = null.\n- Les quantités sont en cartons (colis). Si le client compte en unités, convertis avec le nombre d'unités par carton seulement si la division tombe juste ; sinon mets doute = true.\n- Rapproche le client de la liste CLIENTS (nom, ville, adresse mail de l'expéditeur, signature). S'il n'y est pas, client_id = null. L'adresse de l'expéditeur peut être différente de celle de la fiche client (commande transférée, collègue, autre boîte mail) : ce n'est PAS une raison de mettre doute = true si le nom, la ville ou la signature correspondent.\n- Date de livraison souhaitée au format AAAA-MM-JJ, null si absente. Une date relative (\"vendredi\", \"mardi prochain\") se calcule à partir de la date du jour.\n- doute = true si quelque chose est ambigu ou illisible, avec l'explication dans remarque (une ou deux phrases courtes).\nRéponds uniquement avec le JSON demandé.` },\n      { role: 'user', content: contenu }\n    ],\n    plugins: [{ id: 'file-parser', pdf: { engine: 'native' } }],\n    response_format: { type: 'json_schema', json_schema: { name: 'commande', strict: true, schema: {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"client_id\", \"client_nom_lu\", \"date_livraison_souhaitee\", \"lignes\", \"doute\", \"remarque\"], \"properties\": {\"client_id\": {\"type\": [\"string\", \"null\"], \"description\": \"id_client de la liste CLIENTS, ou null\"}, \"client_nom_lu\": {\"type\": \"string\", \"description\": \"Le nom du client tel qu'il apparaît\"}, \"date_livraison_souhaitee\": {\"type\": [\"string\", \"null\"], \"description\": \"AAAA-MM-JJ ou null\"}, \"lignes\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"ref\", \"designation_lue\", \"quantite_cartons\"], \"properties\": {\"ref\": {\"type\": [\"string\", \"null\"], \"description\": \"Référence du CATALOGUE, ou null si hors catalogue\"}, \"designation_lue\": {\"type\": \"string\", \"description\": \"Le produit tel qu'il est écrit dans la commande\"}, \"quantite_cartons\": {\"type\": \"number\"} } } }, \"doute\": {\"type\": \"boolean\"}, \"remarque\": {\"type\": \"string\", \"description\": \"Vide si tout est clair\"} } } } }\n  });\n})()}}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "c5a42c2c-23e0-4870-9851-941e50889fce",
+      "name": "Vérifier la commande",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1380,
+        120
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Compare ce que l'IA a lu avec le catalogue et la liste des clients.\n// Rien n'est deviné : au moindre doute, la commande part en alerte.\nconst R = $('Réglages').item.json;\nconst mail = R;\nconst catalogue = $('Charger le catalogue').all().map(i => i.json).filter(p => p.ref);\nconst clients = $('Charger les clients').all().map(i => i.json).filter(c => c.id_client);\nconst dejaSaisies = $('Charger les commandes déjà saisies').all().map(i => i.json).filter(c => c.n_commande);\n\n// 1. La réponse de l'IA\nlet lu;\ntry {\n  const brut = $json.choices[0].message.content.replace(/```json|```/g, '').trim();\n  lu = JSON.parse(brut);\n} catch (e) {\n  lu = { client_id: null, client_nom_lu: '?', date_livraison_souhaitee: null, lignes: [], doute: true,\n         remarque: \"L'IA n'a pas réussi à lire cette commande.\" };\n}\n\nconst anomalies = [];\n\n// 2. Le client\nconst adresseExpediteur = (mail.from?.value?.[0]?.address || '').toLowerCase();\nconst client = clients.find(c => c.id_client === lu.client_id)\n  || clients.find(c => (c.email || '').toLowerCase() === adresseExpediteur);\nif (!client) anomalies.push(`Client inconnu : « ${lu.client_nom_lu} » n'est pas dans la liste des clients.`);\n\n// 3. Les produits et les quantités\nconst lignes = [];\nif (!lu.lignes || lu.lignes.length === 0) anomalies.push(\"Aucun produit trouvé dans la commande.\");\nfor (const l of (lu.lignes || [])) {\n  const produit = catalogue.find(p => p.ref === l.ref);\n  const q = Number(l.quantite_cartons);\n  if (!produit) {\n    anomalies.push(`Produit inconnu : « ${l.designation_lue} » (quantité ${l.quantite_cartons}) n'est pas au catalogue.`);\n    continue;\n  }\n  if (!Number.isInteger(q) || q <= 0 || q > R.quantite_max_par_produit) {\n    anomalies.push(`Quantité bizarre : ${l.quantite_cartons} cartons de ${produit.produit}.`);\n  }\n  lignes.push({ produit, quantite: q });\n}\n\n// 4. La date de livraison\nconst aujourdhui = $now.toFormat('yyyy-MM-dd');\nconst dateLivraison = lu.date_livraison_souhaitee || '';\nif (dateLivraison && dateLivraison < aujourdhui) anomalies.push(`Date de livraison déjà passée : ${dateLivraison}.`);\n\n// 5. Le doute de l'IA, et le mail déjà traité\nif (lu.doute) anomalies.push(`L'IA a un doute : ${lu.remarque}`);\nif (dejaSaisies.some(c => c.id_mail === mail.id)) anomalies.push(\"Ce mail a déjà été saisi dans le tableau.\");\n\n// 6. Le numéro de commande : le suivant dans le tableau\nconst numeros = dejaSaisies.map(c => parseInt(String(c.n_commande).replace(/\\D/g, ''), 10)).filter(n => !isNaN(n));\nconst numero = Math.max(R.premier_numero_commande - 1, ...numeros) + 1 + $itemIndex;\nconst n_commande = `CMD-${numero}`;\n\nconst fr = d => d ? DateTime.fromISO(d).setLocale('fr').toFormat('cccc d MMMM') : '';\n\n// Ce qu'il faut pour l'accusé de réception ou l'alerte\nconst commande = {\n  n_commande,\n  id_mail: mail.id,\n  objet_mail: mail.subject,\n  expediteur: (mail.from || {}).text,\n  adresse_expediteur: adresseExpediteur,\n  id_client: client ? client.id_client : '',\n  client: client ? client.client : lu.client_nom_lu,\n  contact: client ? client.contact : '',\n  email_client: client ? client.email : '',\n  date_reception: aujourdhui,\n  date_reception_texte: $now.setLocale('fr').toFormat('d MMMM'),\n  date_livraison_souhaitee: dateLivraison,\n  date_livraison_texte: dateLivraison ? fr(dateLivraison) : 'non précisée',\n  recapitulatif: lignes.map(l => `- ${l.quantite} cartons de ${l.produit.produit} (${l.produit.ref})`).join('\\n'),\n};\n\nreturn {\n  json: {\n    ...commande,\n    anomalies,\n    ce_que_l_ia_a_lu: (lu.lignes || []).map(l => `- ${l.quantite_cartons} x ${l.designation_lue} (réf. ${l.ref || 'aucune'})`).join('\\n'),\n    // Une ligne par produit, avec les colonnes du tableau Commandes\n    lignes: lignes.map(l => ({\n      ...commande,\n      ref: l.produit.ref,\n      produit: l.produit.produit,\n      quantite_cartons: l.quantite,\n      prix_ht_carton: l.produit.prix_ht_carton,\n      total_ht: Math.round(l.quantite * l.produit.prix_ht_carton * 100) / 100,\n      statut: 'À préparer',\n    })),\n  },\n};\n"
+      }
+    },
+    {
+      "id": "a2ebde4a-2ed8-4280-8b73-a8743a687cbd",
+      "name": "Tout est bon ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1580,
+        120
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e234cd11-3d6e-46b7-9eb2-99a72a89662b",
+              "leftValue": "={{ $json.anomalies.length }}",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              },
+              "rightValue": 0
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "5188509b-87fc-44cb-ba1f-e77bb56f6bd6",
+      "name": "Une ligne par produit",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1780,
+        120
+      ],
+      "parameters": {
+        "fieldToSplitOut": "lignes",
+        "include": "noOtherFields",
+        "options": {}
+      }
+    },
+    {
+      "id": "aed8722d-2f40-494d-aeae-e51ea8c377a7",
+      "name": "Ajouter à l'ERP",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1980,
+        120
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Réglages').first().json.feuille_erp_id }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Commandes",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "handlingExtraData": "ignoreIt",
+          "cellFormat": "USER_ENTERED"
+        }
+      }
+    },
+    {
+      "id": "fd87abd6-835f-4dc4-a30f-928d34922f60",
+      "name": "Une seule réponse par commande",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        2180,
+        120
+      ],
+      "parameters": {
+        "operation": "removeDuplicateInputItems",
+        "compare": "selectedFields",
+        "fieldsToCompare": "n_commande",
+        "options": {}
+      }
+    },
+    {
+      "id": "a88348df-709f-4e59-982f-a298e4f8de37",
+      "name": "Répondre au client",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2380,
+        120
+      ],
+      "parameters": {
+        "sendTo": "={{ $json.adresse_expediteur || $json.email_client }}",
+        "subject": "=Commande bien reçue : {{ $json.n_commande }} ({{ $json.objet_mail }})",
+        "emailType": "text",
+        "message": "=Bonjour{{ $json.contact ? ' ' + $json.contact : '' }},\n\nNous avons bien reçu votre commande du {{ $json.date_reception_texte }} :\n\n{{ $json.recapitulatif }}\n\nLivraison souhaitée : {{ $json.date_livraison_texte }}.\nVotre numéro de commande : {{ $json.n_commande }}.\n\nMerci pour votre confiance.\n\n{{ $('Réglages').first().json.signature }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "={{ $('Réglages').first().json.nom_entreprise }}"
+        }
+      }
+    },
+    {
+      "id": "0a550468-e34e-4486-bf40-88f84b96143e",
+      "name": "Alerte : à vérifier",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1780,
+        300
+      ],
+      "parameters": {
+        "sendTo": "={{ $('Réglages').first().json.adresse_alerte }}",
+        "subject": "=À vérifier : commande de {{ $json.client }} ({{ $json.objet_mail }})",
+        "emailType": "text",
+        "message": "=Une commande demande une vérification. Rien n'a été ajouté au tableau.\n\nCe qui cloche :\n{{ $json.anomalies.map(a => '- ' + a).join('\\n') }}\n\nMail reçu de : {{ $json.expediteur }}\nObjet : {{ $json.objet_mail }}\nClient reconnu : {{ $json.id_client ? $json.client + ' (' + $json.id_client + ')' : 'aucun' }}\n\nCe que l'IA a lu :\n{{ $json.ce_que_l_ia_a_lu || '(rien)' }}\n\nOuvrez le mail d'origine pour traiter cette commande à la main.",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Automatisation commandes"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Surveiller la boîte des commandes": {
+      "main": [
+        [
+          {
+            "node": "Réglages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Réglages": {
+      "main": [
+        [
+          {
+            "node": "Est-ce une commande ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA rapide pour le tri": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Est-ce une commande ?",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Est-ce une commande ?": {
+      "main": [
+        [
+          {
+            "node": "Charger le catalogue",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ouvrir la pièce jointe",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pas une commande : on ne fait rien",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Charger le catalogue": {
+      "main": [
+        [
+          {
+            "node": "Charger les clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Charger les clients": {
+      "main": [
+        [
+          {
+            "node": "Charger les commandes déjà saisies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ouvrir la pièce jointe": {
+      "main": [
+        [
+          {
+            "node": "Lire le PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lire la commande (IA)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lire l'Excel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire l'Excel": {
+      "main": [
+        [
+          {
+            "node": "Regrouper les lignes de l'Excel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire le PDF": {
+      "main": [
+        [
+          {
+            "node": "Lire la commande (IA)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Regrouper les lignes de l'Excel": {
+      "main": [
+        [
+          {
+            "node": "Lire la commande (IA)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire la commande (IA)": {
+      "main": [
+        [
+          {
+            "node": "Vérifier la commande",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vérifier la commande": {
+      "main": [
+        [
+          {
+            "node": "Tout est bon ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tout est bon ?": {
+      "main": [
+        [
+          {
+            "node": "Une ligne par produit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alerte : à vérifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Une ligne par produit": {
+      "main": [
+        [
+          {
+            "node": "Ajouter à l'ERP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ajouter à l'ERP": {
+      "main": [
+        [
+          {
+            "node": "Une seule réponse par commande",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Une seule réponse par commande": {
+      "main": [
+        [
+          {
+            "node": "Répondre au client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Paris"
+  }
+}

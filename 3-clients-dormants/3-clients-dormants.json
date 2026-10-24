@@ -1,0 +1,365 @@
+{
+  "name": "3 - Relance des clients dormants",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 3. Relance des clients dormants\nChaque lundi, repère les clients qui ne commandent plus à leur rythme habituel et prépare pour chacun un brouillon de relance dans Gmail. Rien n'est envoyé.\n\n**Pour l'adapter :** tout se change dans **Réglages** (ID du Google Sheet, seuil d'alerte, commercial, nouveauté).",
+        "height": 230,
+        "width": 720,
+        "color": 4
+      },
+      "id": "abe3597b-dd75-4776-98b4-dfac0cc1d5fe",
+      "name": "Note fc364f",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "abdbb949-ef0e-45f2-8d96-d5bbd70e05eb",
+      "name": "Chaque lundi à 8 h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "4a7d56db-0439-4210-9fc5-e3a9f457c157",
+      "name": "Lancer à la main",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b43a75c3-99b4-4536-9ceb-6715bf69af1c",
+              "name": "id_google_sheet",
+              "value": "COLLEZ_ICI_L_ID_DE_VOTRE_GOOGLE_SHEET",
+              "type": "string"
+            },
+            {
+              "id": "9715a963-c277-4e66-9c07-bfe753a5e144",
+              "name": "seuil_alerte",
+              "value": 2,
+              "type": "number"
+            },
+            {
+              "id": "301903ea-4f6e-4ec4-981a-82f9d9851416",
+              "name": "nom_commercial",
+              "value": "Votre prénom et nom",
+              "type": "string"
+            },
+            {
+              "id": "26ce8917-9e56-4691-83cf-0c7b3ddda2a2",
+              "name": "nom_entreprise",
+              "value": "Votre entreprise",
+              "type": "string"
+            },
+            {
+              "id": "2e6a332f-9f17-4360-9ec3-d0d76fae8ed0",
+              "name": "nouveaute",
+              "value": "une nouvelle recette de sablés au sarrasin",
+              "type": "string"
+            },
+            {
+              "id": "4ad77fba-d2b2-4b43-822d-92f210c47c77",
+              "name": "date_de_reference",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "50a14ae4-81e8-447d-80dd-f66be273ab8a",
+      "name": "Réglages",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Réglages').first().json.id_google_sheet }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Ventes"
+        },
+        "options": {}
+      },
+      "id": "b98ebc8a-5950-423f-9bf1-67f54ce0ce45",
+      "name": "Lire l'historique des ventes",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        400,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Réglages').first().json.id_google_sheet }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Clients"
+        },
+        "options": {}
+      },
+      "id": "65ec73be-d646-4e1f-8e33-20199389d805",
+      "name": "Lire les clients",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        600,
+        280
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// CALCULER LE RYTHME DE CHAQUE CLIENT\n// Pour chaque client, on regarde :\n//   1. à quelle fréquence il commande d'habitude (son rythme)\n//   2. depuis combien de jours il n'a rien commandé\n// Le nœud suivant garde ceux qui ont \"décroché\".\n// ============================================================\n\nconst reglages = $('Réglages').first().json;\nconst ventes = $(\"Lire l'historique des ventes\").all().map(item => item.json);\nconst clients = $('Lire les clients').all().map(item => item.json);\n\nconst UN_JOUR = 24 * 60 * 60 * 1000;\n\n// --- Outil : lire une date du tableur (2026-10-19, 19/10/2026 ou numéro de série)\nfunction lireDate(valeur) {\n  if (valeur === undefined || valeur === null || valeur === '') return null;\n  if (typeof valeur === 'number') return new Date(Date.UTC(1899, 11, 30) + valeur * UN_JOUR);\n  const texte = String(valeur).trim();\n  let m = texte.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})/);\n  if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));\n  m = texte.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})/);\n  if (m) return new Date(Date.UTC(+m[3], +m[2] - 1, +m[1]));\n  return null;\n}\n\n// --- Outil : lire un nombre (\"1 234,50 €\" ou 1234.5)\nfunction lireNombre(valeur) {\n  if (typeof valeur === 'number') return valeur;\n  const texte = String(valeur ?? '').replace(/[\\s  €]/g, '').replace(',', '.');\n  return parseFloat(texte) || 0;\n}\n\nconst formatDate = d => d.toISOString().slice(0, 10).split('-').reverse().join('/');\n\n// --- Date de référence : aujourd'hui (ou la date forcée dans Réglages)\nconst maintenant = $now.setZone('Europe/Paris');\nconst reference = lireDate(reglages.date_de_reference)\n  ?? new Date(Date.UTC(maintenant.year, maintenant.month - 1, maintenant.day));\n\n// 1. On regroupe les ventes par client : ses jours de commande et ses produits\nconst parClient = {};\nfor (const vente of ventes) {\n  const date = lireDate(vente.date);\n  if (!date || !vente.id_client || date > reference) continue;\n  if (!parClient[vente.id_client]) parClient[vente.id_client] = { jours: new Set(), produits: {}, ca12mois: 0 };\n  const c = parClient[vente.id_client];\n  c.jours.add(date.getTime());\n  c.produits[vente.produit] = (c.produits[vente.produit] || 0) + lireNombre(vente.quantite_cartons);\n  if (reference - date <= 365 * UN_JOUR) c.ca12mois += lireNombre(vente.ca_ht);\n}\n\n// 2. Pour chaque client du fichier Clients : son rythme et sa dernière commande\nconst resultat = [];\nfor (const fiche of clients) {\n  const c = parClient[fiche.id_client];\n  if (!c || c.jours.size < 3) continue; // moins de 3 commandes : pas encore de rythme\n\n  const jours = [...c.jours].sort((a, b) => a - b);\n  const premiere = jours[0];\n  const derniere = jours[jours.length - 1];\n\n  // Rythme = écart moyen entre deux commandes\n  const rythme = (derniere - premiere) / UN_JOUR / (jours.length - 1);\n  const joursDepuis = Math.round((reference - derniere) / UN_JOUR);\n\n  // Ses 3 produits les plus commandés\n  const produitsHabituels = Object.entries(c.produits)\n    .sort((a, b) => b[1] - a[1])\n    .slice(0, 3)\n    .map(([produit]) => produit);\n\n  resultat.push({\n    client: fiche.client,\n    contact: fiche.contact,\n    email: fiche.email,\n    type: fiche.type,\n    ville: fiche.ville,\n    nb_commandes: jours.length,\n    rythme_moyen_jours: Math.round(rythme),\n    derniere_commande: formatDate(new Date(derniere)),\n    jours_depuis_derniere_commande: joursDepuis,\n    produits_habituels: produitsHabituels.join(', '),\n    ca_12_derniers_mois: Math.round(c.ca12mois),\n  });\n}\n\n// Les plus gros clients en premier\nresultat.sort((a, b) => b.ca_12_derniers_mois - a.ca_12_derniers_mois);\nreturn resultat.map(json => ({ json }));\n"
+      },
+      "id": "b289d352-2a1c-48f4-acfb-d49e421183c7",
+      "name": "Calculer le rythme de chaque client",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "36d429a7-16a5-45ba-8030-3b706ce76de0",
+              "leftValue": "={{ $json.jours_depuis_derniere_commande }}",
+              "rightValue": "={{ $json.rythme_moyen_jours * $('Réglages').first().json.seuil_alerte }}",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9e4a16ba-4b04-4677-8591-eb1d855f3a77",
+      "name": "Garder les clients en alerte",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1000,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Client : {{ $json.client }} ({{ $json.type }}, {{ $json.ville }})\nContact : {{ $json.contact }}\nCommande d'habitude tous les {{ $json.rythme_moyen_jours }} jours environ.\nDernière commande : le {{ $json.derniere_commande }}.\nProduits qu'il commande le plus : {{ $json.produits_habituels }}\nNouveauté à mentionner : {{ $('Réglages').first().json.nouveaute }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Tu es {{ $('Réglages').first().json.nom_commercial }}, commercial de la {{ $('Réglages').first().json.nom_entreprise }}. Tu écris à un client qui ne commande plus à son rythme habituel, pour reprendre contact.\n\nRègles :\n- Mail court : 4 à 6 phrases, pas plus.\n- Commence par « Bonjour » suivi du prénom du contact, puis une virgule.\n- Dis simplement que cela fait un moment que vous n'avez pas eu de commande de sa part. Aucun reproche, aucune pression, pas de nombre de jours.\n- Cite ses produits habituels par leur nom, en minuscules dans la phrase (« vos galettes pur beurre »), et dis qu'ils sont disponibles.\n- Présente la nouveauté en une phrase.\n- Termine par une question simple qui propose de lui mettre de côté sa commande habituelle.\n- Vouvoiement, ton chaleureux et naturel, comme un commercial qui connaît son client.\n- Signe avec ton prénom, ton nom et le nom de l'entreprise, sur deux lignes.\n- Pas d'objet, pas d'emoji, pas de tiret long.\n- Réponds uniquement avec le texte du mail."
+            }
+          ]
+        }
+      },
+      "id": "fc259590-5132-4a73-bef1-33243e6a3ab3",
+      "name": "Écrire le message",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1180,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "model": "anthropic/claude-haiku-5.5",
+        "options": {
+          "maxTokens": 2000
+        }
+      },
+      "id": "9181c28a-8931-438a-8751-bf069d97b4cc",
+      "name": "Claude (OpenRouter)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "operation": "create",
+        "subject": "={{ $('Garder les clients en alerte').item.json.client }} : votre commande habituelle ?",
+        "emailType": "text",
+        "message": "={{ $json.text.trim() }}",
+        "options": {
+          "sendTo": "={{ $('Garder les clients en alerte').item.json.email }}"
+        }
+      },
+      "id": "656b78ae-4a61-49bb-b301-e9b8d30a1e66",
+      "name": "Créer le brouillon dans Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1420,
+        280
+      ]
+    }
+  ],
+  "connections": {
+    "Chaque lundi à 8 h": {
+      "main": [
+        [
+          {
+            "node": "Réglages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lancer à la main": {
+      "main": [
+        [
+          {
+            "node": "Réglages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Réglages": {
+      "main": [
+        [
+          {
+            "node": "Lire l'historique des ventes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire l'historique des ventes": {
+      "main": [
+        [
+          {
+            "node": "Lire les clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire les clients": {
+      "main": [
+        [
+          {
+            "node": "Calculer le rythme de chaque client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculer le rythme de chaque client": {
+      "main": [
+        [
+          {
+            "node": "Garder les clients en alerte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Garder les clients en alerte": {
+      "main": [
+        [
+          {
+            "node": "Écrire le message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Écrire le message": {
+      "main": [
+        [
+          {
+            "node": "Créer le brouillon dans Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude (OpenRouter)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Écrire le message",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Paris",
+    "saveManualExecutions": true
+  }
+}

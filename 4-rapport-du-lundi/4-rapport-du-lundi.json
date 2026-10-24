@@ -1,0 +1,381 @@
+{
+  "name": "4 - Rapport du lundi matin",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 4. Le rapport du lundi matin\nChaque lundi à 7 h, lit les ventes et les factures, calcule les chiffres de la semaine et envoie au dirigeant un point d'une page rédigé par l'IA.\n\n**Pour l'adapter :** tout se change dans **Réglages** (ID du Google Sheet, adresse et prénom du dirigeant).",
+        "height": 230,
+        "width": 720,
+        "color": 4
+      },
+      "id": "b3beef4c-b0c8-41dd-a6db-95178a6ccedc",
+      "name": "Note 3ecf14",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "id": "b0043099-8280-4934-b77c-b06a4025cd27",
+      "name": "Chaque lundi à 7 h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "4408f52a-fc3d-4076-8634-1335d788245e",
+      "name": "Lancer à la main",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "23e5ebc8-b457-45bb-b703-c216994ecadd",
+              "name": "id_google_sheet",
+              "value": "COLLEZ_ICI_L_ID_DE_VOTRE_GOOGLE_SHEET",
+              "type": "string"
+            },
+            {
+              "id": "ce55022c-8512-40ab-8808-468588f96ec0",
+              "name": "email_dirigeant",
+              "value": "dirigeant@votre-entreprise.fr",
+              "type": "string"
+            },
+            {
+              "id": "a24171ee-cceb-4aa0-8634-941c07a380dc",
+              "name": "prenom_dirigeant",
+              "value": "Votre prénom",
+              "type": "string"
+            },
+            {
+              "id": "05b6d794-d4e2-4dc9-b408-de5de0c72b81",
+              "name": "nom_entreprise",
+              "value": "Votre entreprise",
+              "type": "string"
+            },
+            {
+              "id": "9e4c4efb-3630-4972-91a9-2336cb94a18a",
+              "name": "seuil_clients_dormants",
+              "value": 2,
+              "type": "number"
+            },
+            {
+              "id": "4d4ec061-4c67-4681-8409-980681946422",
+              "name": "date_de_reference",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c51ce9f7-8bd8-46ac-9e51-d461c141ba8e",
+      "name": "Réglages",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Réglages').first().json.id_google_sheet }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Ventes"
+        },
+        "options": {}
+      },
+      "id": "3bee8a26-d709-4f31-a8af-8f2d23492a88",
+      "name": "Lire les ventes",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        400,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Réglages').first().json.id_google_sheet }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Factures"
+        },
+        "options": {}
+      },
+      "id": "7e5b6d54-ca90-4d38-a112-3439a199a74a",
+      "name": "Lire les factures",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        600,
+        280
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Réglages').first().json.id_google_sheet }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Commandes"
+        },
+        "options": {}
+      },
+      "id": "2967fa7e-5abc-466b-8fc6-6201d8e2071a",
+      "name": "Lire les commandes",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        800,
+        280
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// CALCULER LES CHIFFRES DE LA SEMAINE\n//   1. Chiffre d'affaires de la semaine écoulée vs la même semaine l'an dernier\n//   2. Les clients qui montent et ceux qui baissent (4 dernières semaines vs l'an dernier)\n//   3. Les produits qui partent le mieux et ceux qui montent\n//   4. Les factures en retard, les clients dormants, les commandes reçues\n// Tout est calculé ici, au centime près. L'IA ne fait que rédiger.\n// ============================================================\n\nconst reglages = $('Réglages').first().json;\nconst ventes = $('Lire les ventes').all().map(item => item.json);\nconst factures = $('Lire les factures').all().map(item => item.json);\nconst commandes = $('Lire les commandes').all().map(item => item.json);\n\nconst UN_JOUR = 24 * 60 * 60 * 1000;\n\n// --- Outils : lire une date et un nombre, quel que soit le format du tableur\nfunction lireDate(valeur) {\n  if (valeur === undefined || valeur === null || valeur === '') return null;\n  if (typeof valeur === 'number') return new Date(Date.UTC(1899, 11, 30) + valeur * UN_JOUR);\n  const texte = String(valeur).trim();\n  let m = texte.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})/);\n  if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));\n  m = texte.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})/);\n  if (m) return new Date(Date.UTC(+m[3], +m[2] - 1, +m[1]));\n  return null;\n}\nfunction lireNombre(valeur) {\n  if (typeof valeur === 'number') return valeur;\n  const texte = String(valeur ?? '').replace(/[\\s  €]/g, '').replace(',', '.');\n  return parseFloat(texte) || 0;\n}\nconst euros = n => Math.round(n).toLocaleString('fr-FR').replace(/ /g, ' ') + ' €';\nconst evolution = (avant, apres) => (avant > 0 ? Math.round(((apres - avant) / avant) * 100) : null);\nconst jourMois = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'UTC' });\n\n// --- Aujourd'hui (ou la date forcée dans Réglages)\nconst maintenant = $now.setZone('Europe/Paris');\nconst aujourdhui = lireDate(reglages.date_de_reference)\n  ?? new Date(Date.UTC(maintenant.year, maintenant.month - 1, maintenant.day));\n\n// --- La semaine écoulée : les 7 derniers jours de l'export des ventes\nlet derniereVente = 0;\nfor (const v of ventes) {\n  const d = lireDate(v.date);\n  if (d && d <= aujourdhui && d > derniereVente) derniereVente = d;\n}\nconst finSemaine = new Date(derniereVente || aujourdhui);\nconst debutSemaine = new Date(finSemaine - 6 * UN_JOUR);\nconst debut4Semaines = new Date(finSemaine - 27 * UN_JOUR);\nconst UN_AN = 364 * UN_JOUR; // 52 semaines : on compare un lundi avec un lundi\n\nconst dans = (d, debut, fin) => d >= debut && d <= fin;\n\n// 1. On additionne les ventes par période, par client et par produit\nlet caSemaine = 0, caSemaineN1 = 0, caAnnee = 0, caAnneeN1 = 0;\nconst clients = {}, produits = {};\nconst debutAnnee = new Date(Date.UTC(finSemaine.getUTCFullYear(), 0, 1));\n\nfor (const v of ventes) {\n  const d = lireDate(v.date);\n  if (!d) continue;\n  const ca = lireNombre(v.ca_ht);\n\n  if (dans(d, debutSemaine, finSemaine)) caSemaine += ca;\n  if (dans(d, new Date(debutSemaine - UN_AN), new Date(finSemaine - UN_AN))) caSemaineN1 += ca;\n  if (dans(d, debutAnnee, finSemaine)) caAnnee += ca;\n  if (dans(d, new Date(debutAnnee - UN_AN), new Date(finSemaine - UN_AN))) caAnneeN1 += ca;\n\n  const recent = dans(d, debut4Semaines, finSemaine);\n  const anDernier = dans(d, new Date(debut4Semaines - UN_AN), new Date(finSemaine - UN_AN));\n  if (!recent && !anDernier) continue;\n\n  const c = (clients[v.client] ??= { client: v.client, type: v.type_client, recent: 0, anDernier: 0 });\n  const p = (produits[v.produit] ??= { produit: v.produit, recent: 0, anDernier: 0 });\n  if (recent) { c.recent += ca; p.recent += ca; }\n  if (anDernier) { c.anDernier += ca; p.anDernier += ca; }\n}\n\n// 2. Clients et produits : l'écart en euros sur 4 semaines vs l'an dernier\nconst ligne = x => ({\n  nom: x.client ?? x.produit,\n  type: x.type,\n  ca_4_semaines: euros(x.recent),\n  ca_4_semaines_an_dernier: euros(x.anDernier),\n  ecart: euros(x.recent - x.anDernier),\n  evolution_pct: x.anDernier > 0 ? evolution(x.anDernier, x.recent) : 'nouveau, pas de ventes l\\'an dernier',\n  _ecart: x.recent - x.anDernier,\n});\nconst listeClients = Object.values(clients).map(ligne);\nconst listeProduits = Object.values(produits).map(ligne);\nconst nettoyer = l => l.map(({ _ecart, ...reste }) => reste);\n\nconst clientsQuiBaissent = nettoyer(listeClients.filter(c => c._ecart < 0).sort((a, b) => a._ecart - b._ecart).slice(0, 3));\nconst clientsQuiMontent = nettoyer(listeClients.filter(c => c._ecart > 0).sort((a, b) => b._ecart - a._ecart).slice(0, 3));\nconst produitsQuiMontent = nettoyer(listeProduits.filter(p => p._ecart > 0).sort((a, b) => b._ecart - a._ecart).slice(0, 3));\nconst meilleursProduits = Object.values(produits).sort((a, b) => b.recent - a.recent).slice(0, 3)\n  .map(p => ({ nom: p.produit, ca_4_semaines: euros(p.recent) }));\n\n// 3. Factures en retard : pas payées et échéance dépassée\nconst enRetard = factures\n  .filter(f => f.n_facture && String(f.payee).trim().toUpperCase() !== 'OUI')\n  .map(f => ({ ...f, echeance: lireDate(f.date_echeance) }))\n  .filter(f => f.echeance && f.echeance < aujourdhui)\n  .map(f => ({\n    client: f.client,\n    facture: f.n_facture,\n    montant: lireNombre(f.montant_ttc),\n    jours_de_retard: Math.round((aujourdhui - f.echeance) / UN_JOUR),\n  }))\n  .sort((a, b) => b.montant - a.montant);\nconst totalEnRetard = enRetard.reduce((s, f) => s + f.montant, 0);\n\n// 4. Clients dormants : rien commandé depuis plus de [seuil] fois leur rythme habituel\nconst joursParClient = {};\nfor (const v of ventes) {\n  const d = lireDate(v.date);\n  if (!d || d > aujourdhui || !v.client) continue;\n  (joursParClient[v.client] ??= new Set()).add(d.getTime());\n}\nconst seuil = Number(reglages.seuil_clients_dormants) || 2;\nconst dormants = Object.entries(joursParClient)\n  .filter(([, jours]) => jours.size >= 3)\n  .filter(([, jours]) => {\n    const liste = [...jours].sort((a, b) => a - b);\n    const rythme = (liste[liste.length - 1] - liste[0]) / UN_JOUR / (liste.length - 1);\n    return (aujourdhui - liste[liste.length - 1]) / UN_JOUR > seuil * rythme;\n  })\n  .map(([client]) => client);\n\n// 5. Commandes reçues la semaine écoulée (onglet Commandes)\nconst commandesSemaine = new Set(\n  commandes\n    .filter(c => c.n_commande && dans(lireDate(c.date_reception) ?? new Date(0), debutSemaine, finSemaine))\n    .map(c => c.n_commande)\n).size;\n\nreturn [{\n  json: {\n    semaine: `du ${debutSemaine.getUTCMonth() === finSemaine.getUTCMonth() ? debutSemaine.getUTCDate() : jourMois(debutSemaine)} au ${jourMois(finSemaine)} ${finSemaine.getUTCFullYear()}`,\n    ca_semaine: euros(caSemaine),\n    ca_meme_semaine_an_dernier: euros(caSemaineN1),\n    evolution_semaine_pct: evolution(caSemaineN1, caSemaine),\n    ca_depuis_janvier: euros(caAnnee),\n    evolution_depuis_janvier_pct: evolution(caAnneeN1, caAnnee),\n    periode_comparaison_clients: `4 semaines du ${jourMois(debut4Semaines)} au ${jourMois(finSemaine)}, comparées aux mêmes 4 semaines l'an dernier`,\n    clients_qui_baissent: clientsQuiBaissent,\n    clients_qui_montent: clientsQuiMontent,\n    produits_qui_montent: produitsQuiMontent,\n    produits_qui_partent_le_mieux: meilleursProduits,\n    factures_en_retard: { nombre: enRetard.length, total: euros(totalEnRetard), principales: enRetard.slice(0, 3).map(f => ({ ...f, montant: euros(f.montant) })) },\n    clients_dormants: { nombre: dormants.length, noms: dormants },\n    commandes_recues_par_mail_la_semaine: commandesSemaine || null, // null si l'onglet Commandes est vide\n  },\n}];\n"
+      },
+      "id": "bd911565-0f2e-4776-90b6-be56d1f76799",
+      "name": "Calculer les chiffres de la semaine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Voici les chiffres de la semaine :\n{{ JSON.stringify($json, null, 2) }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Tu es le bras droit de {{ $('Réglages').first().json.prenom_dirigeant }}, le dirigeant de la {{ $('Réglages').first().json.nom_entreprise }}. Chaque lundi matin, tu lui fais le point de la semaine par mail, comme un collaborateur de confiance : clair, direct, chiffré, sans jargon. Il le lit en une minute avec son café.\n\nTu reçois les chiffres déjà calculés. N'invente aucun chiffre et reprends les montants tels qu'ils sont écrits. Une donnée qui vaut null ne se mentionne pas.\n\nRédige en HTML simple (uniquement les balises p, h3, ul, li, strong), dans cet ordre :\n1. <p>Bonjour {{ $('Réglages').first().json.prenom_dirigeant }},</p> puis un paragraphe de 2 ou 3 phrases : le chiffre d'affaires de la semaine, la comparaison avec la même semaine l'an dernier, et ce qu'il faut en retenir.\n2. <h3>Les 3 clients qui baissent</h3> une liste, une puce par client : son nom en gras, ce qu'il a commandé sur les 4 dernières semaines contre l'an dernier, et une action conseillée en quelques mots.\n3. <h3>Les 3 produits qui montent</h3> une liste, une puce par produit avec sa progression.\n4. <h3>Le reste de la semaine</h3> un court paragraphe de 3 phrases au maximum : les factures en retard (la plus grosse nommée), les clients dormants (nommés), puis les clients qui montent en une phrase. Ajoute les commandes reçues par mail seulement si ce chiffre n'est pas null.\n5. <h3>À regarder cette semaine</h3> une seule phrase : l'action la plus importante.\n\nVouvoiement. Pas de tableau, pas de titre principal, pas de signature, pas d'emoji, pas de tiret long. Réponds uniquement avec le HTML."
+            }
+          ]
+        }
+      },
+      "id": "e5f4bb64-a3a9-488e-be28-756792b767dc",
+      "name": "Écrire le rapport",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1180,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "model": "anthropic/claude-sonnet-5.5",
+        "options": {
+          "maxTokens": 4000
+        }
+      },
+      "id": "60e58e41-d6b4-488b-beb9-5fd98351c328",
+      "name": "Claude (OpenRouter)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// METTRE EN PAGE LE MAIL\n// On met le texte de l'IA dans un gabarit sobre, avec les\n// 4 chiffres clés en haut. Les couleurs se changent ici.\n// ============================================================\n\nconst reglages = $('Réglages').first().json;\nconst chiffres = $('Calculer les chiffres de la semaine').first().json;\nlet texte = $json.text || '';\n\n// Couleurs du gabarit\nconst ENCRE = '#1f2328', GRIS = '#6b6f76', FOND = '#f6f3ee', ACCENT = '#8a5a2b', VERT = '#1a7f37', ROUGE = '#b42318';\n\n// 1. On nettoie le texte de l'IA et on lui donne un style lisible dans Gmail\ntexte = texte.replace(/```html|```/g, '').trim()\n  // La phrase « À regarder cette semaine » est mise en valeur dans un encadré\n  .replace(/<h3>\\s*(À regarder cette semaine)\\s*<\\/h3>\\s*<p>([\\s\\S]*?)<\\/p>/i,\n    `<div style=\"margin:26px 0 0;padding:14px 16px;background:${FOND};border-left:4px solid ${ACCENT};border-radius:4px;\">` +\n    `<div style=\"font-size:13px;font-weight:700;color:${ACCENT};text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;\">$1</div>$2</div>`)\n  .replace(/<h3>/g, `<h3 style=\"font-size:15px;margin:26px 0 8px;color:${ACCENT};text-transform:uppercase;letter-spacing:.06em;\">`)\n  .replace(/<p>/g, `<p style=\"margin:0 0 12px;\">`)\n  .replace(/<ul>/g, `<ul style=\"margin:0 0 12px;padding-left:20px;\">`)\n  .replace(/<li>/g, `<li style=\"margin:0 0 8px;\">`)\n  // Espaces insécables : « 68 884 € » ne se coupe jamais en fin de ligne\n  .replace(/(\\d) (?=\\d{3}\\b)/g, '$1&nbsp;')\n  .replace(/(\\d) (€|%)/g, '$1&nbsp;$2');\n\n// 2. Les 4 chiffres clés en haut du mail\nconst signe = n => (n === null ? '' : n > 0 ? `+${n} %` : `${n} %`);\nconst couleur = n => (n === null ? GRIS : n >= 0 ? VERT : ROUGE);\nconst carte = (titre, valeur, detail, couleurDetail = GRIS) => `\n  <td style=\"width:25%;padding:6px;vertical-align:top;\">\n    <div style=\"background:${FOND};border-radius:8px;padding:14px 12px;min-height:74px;\">\n      <div style=\"font-size:11px;color:${GRIS};text-transform:uppercase;letter-spacing:.05em;\">${titre}</div>\n      <div style=\"font-size:21px;font-weight:700;color:${ENCRE};margin-top:6px;\">${valeur}</div>\n      <div style=\"font-size:12px;color:${couleurDetail};margin-top:4px;\">${detail}</div>\n    </div>\n  </td>`;\n\nconst cartes = [\n  carte('CA de la semaine', chiffres.ca_semaine, `${signe(chiffres.evolution_semaine_pct)} vs l'an dernier`, couleur(chiffres.evolution_semaine_pct)),\n  carte('Depuis janvier', chiffres.ca_depuis_janvier, `${signe(chiffres.evolution_depuis_janvier_pct)} vs l'an dernier`, couleur(chiffres.evolution_depuis_janvier_pct)),\n  carte('Impayés', chiffres.factures_en_retard.total, `${chiffres.factures_en_retard.nombre} facture${chiffres.factures_en_retard.nombre > 1 ? 's' : ''} en retard`, chiffres.factures_en_retard.nombre ? ROUGE : GRIS),\n  carte('Clients dormants', String(chiffres.clients_dormants.nombre), 'à relancer', chiffres.clients_dormants.nombre ? ROUGE : GRIS),\n].join('');\n\n// 3. Le mail complet\nconst html = `<!doctype html>\n<html><body style=\"margin:0;padding:0;background:#ffffff;\">\n<div style=\"max-width:640px;margin:0 auto;padding:28px 20px;font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:${ENCRE};\">\n  <div style=\"font-size:12px;color:${ACCENT};text-transform:uppercase;letter-spacing:.12em;font-weight:600;\">${reglages.nom_entreprise}</div>\n  <h1 style=\"font-size:26px;margin:6px 0 2px;color:${ENCRE};\">Le point du lundi</h1>\n  <div style=\"font-size:14px;color:${GRIS};margin-bottom:18px;\">Semaine ${chiffres.semaine}</div>\n  <table role=\"presentation\" style=\"width:100%;border-collapse:collapse;margin:0 -6px 8px;\"><tr>${cartes}</tr></table>\n  <div style=\"margin-top:14px;\">${texte}</div>\n  <div style=\"margin-top:30px;padding-top:14px;border-top:1px solid #e5e1da;font-size:12px;color:${GRIS};\">\n    Rapport préparé automatiquement chaque lundi à 7 h à partir des ventes et des factures.\n  </div>\n</div>\n</body></html>`;\n\nconst evol = chiffres.evolution_semaine_pct;\nreturn [{\n  json: {\n    destinataire: reglages.email_dirigeant,\n    sujet: `Le point du lundi : ${chiffres.ca_semaine} la semaine dernière${evol === null ? '' : ` (${signe(evol)})`}`,\n    html,\n  },\n}];\n"
+      },
+      "id": "0be39c39-71cf-4c99-bcff-bcead14d1062",
+      "name": "Mettre en page le mail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1420,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.destinataire }}",
+        "subject": "={{ $json.sujet }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "bdd8eb11-140f-4179-892b-8398cd023116",
+      "name": "Envoyer le rapport au dirigeant",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1620,
+        280
+      ]
+    }
+  ],
+  "connections": {
+    "Chaque lundi à 7 h": {
+      "main": [
+        [
+          {
+            "node": "Réglages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lancer à la main": {
+      "main": [
+        [
+          {
+            "node": "Réglages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Réglages": {
+      "main": [
+        [
+          {
+            "node": "Lire les ventes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire les ventes": {
+      "main": [
+        [
+          {
+            "node": "Lire les factures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire les factures": {
+      "main": [
+        [
+          {
+            "node": "Lire les commandes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire les commandes": {
+      "main": [
+        [
+          {
+            "node": "Calculer les chiffres de la semaine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculer les chiffres de la semaine": {
+      "main": [
+        [
+          {
+            "node": "Écrire le rapport",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Écrire le rapport": {
+      "main": [
+        [
+          {
+            "node": "Mettre en page le mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mettre en page le mail": {
+      "main": [
+        [
+          {
+            "node": "Envoyer le rapport au dirigeant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude (OpenRouter)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Écrire le rapport",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Paris",
+    "saveManualExecutions": true
+  }
+}
